@@ -1,8 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from .models import (
     Categoria,
@@ -107,7 +109,9 @@ def lista_productos(request):
 
 def detalle_producto(request, slug):
     producto = get_object_or_404(
-        Producto.objects.select_related("categoria"), slug=slug, activo=True
+        Producto.objects.select_related("categoria").prefetch_related("imagenes"),
+        slug=slug,
+        activo=True,
     )
     imagenes = producto.imagenes.all()
     relacionados = Producto.objects.filter(
@@ -125,7 +129,9 @@ def detalle_producto(request, slug):
 
 
 def lista_categorias(request):
-    categorias = Categoria.objects.filter(activa=True)
+    categorias = Categoria.objects.filter(activa=True).annotate(
+        productos_count=Count("productos")
+    )
     return render(request, "products/categories.html", {"categorias": categorias})
 
 
@@ -224,7 +230,7 @@ def actualizar_carrito(request, item_id):
             messages.success(request, "Carrito actualizado.")
         else:
             for error in form.errors.values():
-                messages.error(request, error)
+                messages.error(request, "\n".join(error) if isinstance(error, list) else error)
     return redirect("ver_carrito")
 
 
@@ -251,23 +257,36 @@ def checkout(request):
     if request.method == "POST":
         form = CheckoutForm(request.POST)
         if form.is_valid():
-            pedido = form.save(commit=False)
-            pedido.usuario = request.user
-            pedido.total = carrito.total
-            pedido.save()
-            for item in items:
-                ItemPedido.objects.create(
-                    pedido=pedido,
-                    producto=item.producto,
-                    nombre_producto=item.producto.nombre,
-                    cantidad=item.cantidad,
-                    precio_unitario=item.precio_unitario,
-                    subtotal=item.subtotal,
-                )
-                producto = item.producto
-                producto.stock -= item.cantidad
-                producto.save()
-            items.delete()
+            with transaction.atomic():
+                for item in items:
+                    producto = item.producto
+                    if not producto.activo or producto.stock < item.cantidad:
+                        messages.error(
+                            request,
+                            f"'{producto.nombre}' no tiene stock suficiente. "
+                            f"Disponible: {producto.stock}",
+                        )
+                        return redirect("ver_carrito")
+
+                pedido = form.save(commit=False)
+                pedido.usuario = request.user
+                pedido.total = carrito.total
+                pedido.save()
+
+                for item in items:
+                    ItemPedido.objects.create(
+                        pedido=pedido,
+                        producto=item.producto,
+                        nombre_producto=item.producto.nombre,
+                        cantidad=item.cantidad,
+                        precio_unitario=item.precio_unitario,
+                        subtotal=item.subtotal,
+                    )
+                    item.producto.stock -= item.cantidad
+                    item.producto.save()
+
+                items.delete()
+
             messages.success(
                 request,
                 f"Pedido {pedido.codigo} confirmado correctamente.",
@@ -295,7 +314,11 @@ def checkout(request):
 
 @login_required
 def mis_pedidos(request):
-    pedidos = Pedido.objects.filter(usuario=request.user).prefetch_related("items")
+    pedidos = (
+        Pedido.objects.filter(usuario=request.user)
+        .prefetch_related("items")
+        .annotate(items_count=Count("items"))
+    )
     return render(request, "orders/list.html", {"pedidos": pedidos})
 
 
@@ -331,7 +354,7 @@ def registro(request):
 
 @login_required
 def perfil_usuario(request):
-    pedidos = Pedido.objects.filter(usuario=request.user)[:5]
+    pedidos = Pedido.objects.filter(usuario=request.user).prefetch_related("items")[:5]
     if request.method == "POST":
         form = PerfilForm(request.POST, instance=request.user)
         if form.is_valid():
@@ -351,16 +374,14 @@ def perfil_usuario(request):
 
 # ─── ADMIN CRUD (staff-only) ─────────────────────────
 
-staff_required = user_passes_test(lambda u: u.is_staff)
 
-
-@staff_required
+@staff_member_required
 def lista_admin(request):
     productos = Producto.objects.all().select_related("categoria")
     return render(request, "products/list.html", {"productos": productos})
 
 
-@staff_required
+@staff_member_required
 def crear_producto(request):
     if request.method == "POST":
         form = ProductoForm(request.POST, request.FILES)
@@ -379,7 +400,7 @@ def crear_producto(request):
     )
 
 
-@staff_required
+@staff_member_required
 def editar_producto(request, id):
     producto = get_object_or_404(Producto, id=id)
     if request.method == "POST":
@@ -399,7 +420,7 @@ def editar_producto(request, id):
     )
 
 
-@staff_required
+@staff_member_required
 def eliminar_producto(request, id):
     producto = get_object_or_404(Producto, id=id)
     if request.method == "POST":

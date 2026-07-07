@@ -4,6 +4,8 @@ Django settings for config project.
 
 import os
 from pathlib import Path
+import dj_database_url
+from django.contrib.messages import constants as message_constants
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,6 +40,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
+    "cloudinary_storage",
+    "cloudinary",
     "tienda",
 ]
 
@@ -84,19 +88,9 @@ DATABASES = {
 
 # Override with PostgreSQL when DATABASE_URL is set (production)
 if os.environ.get("DATABASE_URL"):
-    import re
-    match = re.match(
-        r"postgres://(.+):(.+)@(.+):(\d+)/(.+)", os.environ["DATABASE_URL"]
+    DATABASES["default"] = dj_database_url.parse(
+        os.environ["DATABASE_URL"], conn_max_age=600
     )
-    if match:
-        DATABASES["default"] = {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": match.group(5),
-            "USER": match.group(1),
-            "PASSWORD": match.group(2),
-            "HOST": match.group(3),
-            "PORT": match.group(4),
-        }
 
 
 # Password validation
@@ -136,18 +130,44 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
-
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media"))
+
+cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
+if cloud_name:
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    CLOUDINARY_STORAGE = {
+        "CLOUD_NAME": cloud_name,
+        "API_KEY": os.environ.get("CLOUDINARY_API_KEY", ""),
+        "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET", ""),
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    CLOUDINARY_STORAGE = {
+        "CLOUD_NAME": "wf4xjrci",
+        "API_KEY": "481984371727142",
+        "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET", ""),
+    }
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "home"
+
+MESSAGE_TAGS = {
+    message_constants.DEBUG: "secondary",
+    message_constants.ERROR: "danger",
+}

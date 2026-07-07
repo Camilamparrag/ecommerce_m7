@@ -1,5 +1,7 @@
+import uuid
+
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
 from django.contrib.auth.models import User
 
@@ -33,7 +35,7 @@ class Producto(models.Model):
         max_digits=5,
         decimal_places=2,
         default=0,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Porcentaje de descuento (0-100)",
     )
     stock = models.PositiveIntegerField(default=0)
@@ -176,7 +178,6 @@ class Pedido(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.codigo:
-            import uuid
             self.codigo = f"ORD-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 

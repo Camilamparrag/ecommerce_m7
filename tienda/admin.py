@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Count
 from .models import Categoria, Producto, ImagenProducto, Carrito, ItemCarrito, Pedido, ItemPedido
 
 
@@ -30,9 +31,13 @@ class CategoriaAdmin(admin.ModelAdmin):
     list_filter = ["activa"]
     ordering = ["nombre"]
 
-    def producto_count(self, obj):
-        return obj.productos.count()
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(_producto_count=Count("productos"))
 
+    def producto_count(self, obj):
+        return obj._producto_count
+
+    producto_count.admin_order_field = "_producto_count"
     producto_count.short_description = "Productos"
 
 
@@ -66,14 +71,20 @@ class ImagenProductoAdmin(admin.ModelAdmin):
 
 @admin.register(Carrito)
 class CarritoAdmin(admin.ModelAdmin):
-    list_display = ["id", "usuario", "session_key", "cantidad", "total", "fecha_actualizacion"]
+    list_display = ["id", "usuario", "session_key", "items_qty", "items_total", "fecha_actualizacion"]
     inlines = [ItemCarritoInline]
 
-    def cantidad(self, obj):
-        return obj.cantidad
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("items")
 
-    def total(self, obj):
-        return obj.total
+    def items_qty(self, obj):
+        return sum(i.cantidad for i in obj.items.all())
+
+    def items_total(self, obj):
+        return sum(i.subtotal for i in obj.items.all())
+
+    items_qty.short_description = "Cantidad"
+    items_total.short_description = "Total"
 
 
 @admin.register(Pedido)
