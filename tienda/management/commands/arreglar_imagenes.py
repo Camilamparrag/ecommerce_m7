@@ -3,11 +3,11 @@ from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 from django.core.files import File
+from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
 from tienda.models import Producto
 
-# Mapa manual: nombre exacto del producto -> nombre del archivo (sin extensión)
 MANUAL_MAP = {
     "Notebook Lenovo IdeaPad 5": "notebook-lenovo-ideapad-5",
     "Monitor Samsung 27\"": "monitor-samsung-27",
@@ -53,20 +53,10 @@ MANUAL_MAP = {
 
 
 class Command(BaseCommand):
-    help = "Sube imágenes locales a Cloudinary y las asigna a cada producto"
+    help = "Asigna imágenes locales a cada producto (FileSystemStorage local / Cloudinary en producción)"
 
     def handle(self, *args, **options):
-        if not all(os.environ.get(k) for k in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET")):
-            self.stdout.write(self.style.WARNING(
-                "Cloudinary no está configurado (faltan CLOUDINARY_CLOUD_NAME, "
-                "CLOUDINARY_API_KEY y/o CLOUDINARY_API_SECRET).\n"
-                "Este comando solo es necesario en producción (Render). "
-                "Localmente las imágenes se sirven desde el fallback Cloudinary 'wf4xjrci'."
-            ))
-            return
-
-        media_dir = settings.MEDIA_ROOT
-        productos_dir = os.path.join(media_dir, "productos")
+        productos_dir = os.path.join(settings.MEDIA_ROOT, "productos")
 
         if not os.path.isdir(productos_dir):
             self.stdout.write(self.style.ERROR(
@@ -74,7 +64,6 @@ class Command(BaseCommand):
             ))
             return
 
-        # Indexar archivos disponibles por slug (sin extensión)
         known_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
         file_index = defaultdict(list)
 
@@ -93,7 +82,8 @@ class Command(BaseCommand):
             paths.sort(key=lambda p: priority.get(os.path.splitext(p)[1].lower(), 99))
             return paths[0]
 
-        ok_count = 0
+        ok = 0
+        errors = []
         no_match = []
 
         for producto in Producto.objects.all().order_by("id"):
@@ -108,33 +98,34 @@ class Command(BaseCommand):
                 continue
 
             path = pick_best(candidates)
-            with open(path, "rb") as fh:
-                filename = os.path.basename(path)
-                producto.imagen = File(fh, name=filename)
-                producto.save()
-            ok_count += 1
-            self.stdout.write(f"  ✓ {producto.nombre} -> {filename}")
+            basename = os.path.basename(path)
+            storage = Producto.imagen.field.storage
 
-        self.stdout.write(f"\nProductos actualizados: {ok_count}/{Producto.objects.count()}")
+            try:
+                if isinstance(storage, FileSystemStorage):
+                    producto.imagen.name = f"productos/{basename}"
+                    producto.save(update_fields=["imagen"])
+                else:
+                    with open(path, "rb") as fh:
+                        producto.imagen = File(fh, name=basename)
+                        producto.save()
+                ok += 1
+                self.stdout.write(f"  ✓ {producto.nombre} -> {basename}")
+            except Exception as e:
+                errors.append(f"{producto.nombre}: {e}")
+                self.stdout.write(self.style.ERROR(f"  ✗ {producto.nombre}: {e}"))
+
+        total = Producto.objects.count()
+        self.stdout.write(f"\nActualizados: {ok}/{total}")
+
+        if errors:
+            self.stdout.write(self.style.ERROR(f"\nErrores ({len(errors)}):"))
+            for e in errors:
+                self.stdout.write(f"  - {e}")
 
         if no_match:
-            self.stdout.write(self.style.WARNING(f"\nProductos sin imagen ({len(no_match)}):"))
+            self.stdout.write(self.style.WARNING(f"\nSin imagen ({len(no_match)}):"))
             for n in no_match:
                 self.stdout.write(f"  - {n}")
 
-        # Mostrar archivos no usados
-        used = set()
-        for producto in Producto.objects.all():
-            if producto.imagen:
-                used.add(os.path.basename(producto.imagen.name))
-        all_files = set()
-        for paths in file_index.values():
-            for p in paths:
-                all_files.add(os.path.basename(p))
-        unused = all_files - used
-        if unused:
-            self.stdout.write(self.style.WARNING(f"\nArchivos no asignados ({len(unused)}):"))
-            for f in sorted(unused):
-                self.stdout.write(f"  - {f}")
-
-        self.stdout.write(self.style.SUCCESS("\nMigración completada."))
+        self.stdout.write(self.style.SUCCESS("Listo."))

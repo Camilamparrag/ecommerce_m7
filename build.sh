@@ -14,8 +14,5 @@ if [ -n "$MEDIA_ROOT" ] && [ "$MEDIA_ROOT" != "$SCRIPT_DIR/media" ]; then
     cp -rn "$SCRIPT_DIR/media/categorias/"* "$MEDIA_ROOT/categorias/" 2>/dev/null || true
 fi
 
-# Subir imágenes locales a Cloudinary (solo si hay credenciales configuradas)
-if [ -n "$CLOUDINARY_CLOUD_NAME" ] && [ -n "$CLOUDINARY_API_KEY" ] && [ -n "$CLOUDINARY_API_SECRET" ]; then
-    echo "Migrando imágenes a Cloudinary..."
-    python manage.py migrar_media_cloudinary
-fi
+# Asignar imágenes a productos (FileSystemStorage local / Cloudinary en producción)
+python manage.py arreglar_imagenes

@@ -133,8 +133,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media"))
 
-cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
-if cloud_name:
+_cloudinary_creds = all(
+    os.environ.get(k) for k in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET")
+)
+if _cloudinary_creds:
     STORAGES = {
         "default": {
             "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
@@ -144,23 +146,18 @@ if cloud_name:
         },
     }
     CLOUDINARY_STORAGE = {
-        "CLOUD_NAME": cloud_name,
-        "API_KEY": os.environ.get("CLOUDINARY_API_KEY", ""),
-        "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET", ""),
+        "CLOUD_NAME": os.environ["CLOUDINARY_CLOUD_NAME"],
+        "API_KEY": os.environ["CLOUDINARY_API_KEY"],
+        "API_SECRET": os.environ["CLOUDINARY_API_SECRET"],
     }
 else:
     STORAGES = {
         "default": {
-            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
-    }
-    CLOUDINARY_STORAGE = {
-        "CLOUD_NAME": "wf4xjrci",
-        "API_KEY": "481984371727142",
-        "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET", ""),
     }
 
 LOGIN_URL = "login"
