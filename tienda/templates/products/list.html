@@ -1,50 +1,111 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
-{% block title %}Lista de Productos{% endblock %}
+{% block title %}Administrar Productos{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Admin Productos</li>
+    </ol>
+</nav>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>Productos</h1>
-    <a href="{% url 'crear_producto' %}" class="btn btn-primary">Nuevo Producto</a>
+    <h1 class="h3 mb-0">
+        <i class="bi bi-gear-wide"></i> Administrar Productos
+    </h1>
+    <a href="{% url 'crear_producto' %}" class="btn btn-success">
+        <i class="bi bi-plus-lg"></i> Nuevo Producto
+    </a>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead class="table-dark">
-            <tr>
-                <th>Nombre</th>
-                <th>Categoría</th>
-                <th>Precio</th>
-                <th>Stock</th>
-                <th>Activo</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for producto in productos %}
-            <tr>
-                <td>{{ producto.nombre }}</td>
-                <td>{{ producto.categoria }}</td>
-                <td>${{ producto.precio }}</td>
-                <td>{{ producto.stock }}</td>
-                <td>
-                    {% if producto.activo %}
-                        <span class="badge bg-success">Sí</span>
-                    {% else %}
-                        <span class="badge bg-danger">No</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-warning">Editar</a>
-                    <a href="{% url 'eliminar_producto' producto.id %}" class="btn btn-sm btn-danger">Eliminar</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" class="text-center">No hay productos registrados.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos %}
+                    <tr>
+                        <td class="text-center" style="width: 60px;">
+                            {% if producto.imagen %}
+                                <img src="{{ producto.imagen.url }}"
+                                     alt="{{ producto.nombre }}"
+                                     class="rounded" style="width: 48px; height: 48px; object-fit: cover;">
+                            {% else %}
+                                <i class="bi bi-image text-muted" style="font-size: 1.5rem;"></i>
+                            {% endif %}
+                        </td>
+                        <td class="fw-semibold">{{ producto.nombre }}</td>
+                        <td><span class="badge bg-info bg-opacity-10 text-info">{{ producto.categoria }}</span></td>
+                        <td>${{ producto.precio_final|floatformat:2|intcomma }}</td>
+                        <td>
+                            {% if producto.stock <= 5 %}
+                                <span class="badge bg-warning text-dark">{{ producto.stock }}</span>
+                            {% elif producto.stock == 0 %}
+                                <span class="badge bg-danger">0</span>
+                            {% else %}
+                                {{ producto.stock }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if producto.activo and producto.stock > 0 %}
+                                <span class="badge bg-success">Disponible</span>
+                            {% elif producto.activo and producto.stock == 0 %}
+                                <span class="badge bg-warning text-dark">Agotado</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'editar_producto' producto.id %}"
+                                   class="btn btn-outline-primary"
+                                   data-bs-toggle="tooltip"
+                                   title="Editar {{ producto.nombre }}">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'eliminar_producto' producto.id %}"
+                                   class="btn btn-outline-danger"
+                                   data-bs-toggle="tooltip"
+                                   title="Eliminar {{ producto.nombre }}">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">No hay productos registrados.</p>
+                            <a href="{% url 'crear_producto' %}" class="btn btn-sm btn-success mt-2">
+                                <i class="bi bi-plus-lg"></i> Crear primero
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if productos %}
+    <div class="card-footer text-muted small">
+        <i class="bi bi-box"></i> Total: {{ productos|length }} producto{{ productos|length|pluralize:"s" }}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

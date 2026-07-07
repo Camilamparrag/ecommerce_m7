@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Categorías{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+        <li class="breadcrumb-item active">Categorías</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<h1 class="h3 fw-bold mb-4"><i class="bi bi-tags"></i> Categorías</h1>
+
+<div class="row g-4">
+    {% for cat in categorias %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <a href="{% url 'productos_por_categoria' cat.id %}" class="text-decoration-none">
+            <div class="card category-card text-center border-0 shadow-sm h-100">
+                <div class="card-body py-5">
+                    <i class="bi bi-box-seam text-primary" style="font-size:3rem;"></i>
+                    <h4 class="mt-3 fw-bold">{{ cat.nombre }}</h4>
+                    <p class="text-muted mb-0">{{ cat.productos.count }} producto{{ cat.productos.count|pluralize:"s" }}</p>
+                    <span class="btn btn-outline-primary btn-sm mt-3"><i class="bi bi-arrow-right"></i> Explorar</span>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <i class="bi bi-emoji-frown" style="font-size:3rem;color:#ccc;"></i>
+        <h4 class="mt-3 text-muted">No hay categorías disponibles</h4>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

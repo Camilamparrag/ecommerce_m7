@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Carrito de Compras{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+        <li class="breadcrumb-item active">Carrito</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<h1 class="h3 fw-bold mb-4"><i class="bi bi-cart3"></i> Carrito de Compras</h1>
+
+{% if items %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-cart mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Precio</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-end">Subtotal</th>
+                            <th class="text-center"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    {% if item.producto.imagen %}
+                                    <img src="{{ item.producto.imagen.url }}" alt="{{ item.producto.nombre }}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
+                                    {% else %}
+                                    <div style="width:50px;height:50px;background:#eee;border-radius:8px;" class="d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-image text-muted"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <a href="{% url 'detalle_producto' item.producto.slug %}" class="text-decoration-none fw-semibold">{{ item.producto.nombre }}</a>
+                                        <br><small class="text-muted">{{ item.producto.categoria.nombre }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${{ item.precio_unitario|floatformat:0|intcomma }}</td>
+                            <td class="text-center">
+                                <form method="post" action="{% url 'actualizar_carrito' item.id %}" class="d-inline-flex align-items-center gap-1">
+                                    {% csrf_token %}
+                                    <input type="number" name="cantidad" value="{{ item.cantidad }}" min="1" max="{{ item.producto.stock }}" class="form-control form-control-sm" style="width:70px;">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Actualizar">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            <td class="text-end fw-bold">${{ item.subtotal|floatformat:0|intcomma }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'eliminar_del_carrito' item.id %}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="mt-2">
+            <a href="{% url 'lista_productos' %}" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Seguir comprando</a>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Resumen</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Productos:</span>
+                    <span>{{ carrito.cantidad }} {{ carrito.cantidad|pluralize:"unidad,unidades" }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Subtotal:</span>
+                    <span class="fw-bold">${{ carrito.total|floatformat:0|intcomma }}</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="h5 fw-bold">Total:</span>
+                    <span class="h5 fw-bold price">${{ carrito.total|floatformat:0|intcomma }}</span>
+                </div>
+                <a href="{% url 'checkout' %}" class="btn btn-primary w-100 btn-lg">
+                    <i class="bi bi-credit-card"></i> Proceder al pago
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-cart-x" style="font-size:4rem;color:#ccc;"></i>
+    <h3 class="mt-3 text-muted">Tu carrito está vacío</h3>
+    <p class="text-muted">Agrega productos para comenzar tu compra.</p>
+    <a href="{% url 'lista_productos' %}" class="btn btn-primary btn-lg"><i class="bi bi-grid"></i> Ver Productos</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Pedido {{ pedido.codigo }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'mis_pedidos' %}">Mis Pedidos</a></li>
+        <li class="breadcrumb-item active">{{ pedido.codigo }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<h1 class="h3 fw-bold mb-4">
+    <i class="bi bi-receipt"></i> Pedido {{ pedido.codigo }}
+</h1>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-box"></i> Productos</h5>
+                <span class="badge 
+                    {% if pedido.estado == 'pendiente' %}bg-warning text-dark
+                    {% elif pedido.estado == 'preparacion' %}bg-info text-dark
+                    {% elif pedido.estado == 'enviado' %}bg-primary
+                    {% elif pedido.estado == 'entregado' %}bg-success
+                    {% elif pedido.estado == 'cancelado' %}bg-danger
+                    {% endif %} fs-6">
+                    {{ pedido.get_estado_display }}
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-end">Precio</th>
+                            <th class="text-end">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in pedido.items.all %}
+                        <tr>
+                            <td>{{ item.nombre_producto }}</td>
+                            <td class="text-center">{{ item.cantidad }}</td>
+                            <td class="text-end">${{ item.precio_unitario|floatformat:0|intcomma }}</td>
+                            <td class="text-end fw-bold">${{ item.subtotal|floatformat:0|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-dark">
+                        <tr>
+                            <td colspan="3" class="text-end fw-bold">Total</td>
+                            <td class="text-end fw-bold">${{ pedido.total|floatformat:0|intcomma }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-truck"></i> Envío</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><strong>Nombre:</strong> {{ pedido.nombre }}</p>
+                <p class="mb-1"><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+                <p class="mb-1"><strong>Ciudad:</strong> {{ pedido.ciudad }}</p>
+                <p class="mb-1"><strong>Teléfono:</strong> {{ pedido.telefono }}</p>
+                <p class="mb-1"><strong>Email:</strong> {{ pedido.email }}</p>
+                {% if pedido.notas %}
+                <hr>
+                <p class="mb-0"><strong>Notas:</strong><br>{{ pedido.notas }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-clock"></i> Línea de Tiempo</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><strong>Creado:</strong> {{ pedido.fecha|date:"d/m/Y H:i" }}</p>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <a href="{% url 'mis_pedidos' %}" class="btn btn-outline-primary w-100">
+                <i class="bi bi-arrow-left"></i> Volver a mis pedidos
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
